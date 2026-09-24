@@ -97,22 +97,26 @@ node -e "for (const k of ['JWT_ACCESS_SECRET','JWT_REFRESH_SECRET','SIGNED_URL_S
 |---|---|
 | Root Directory | leave blank, the repo root |
 | Runtime | Node |
-| Build Command | `npm ci --no-audit --no-fund && npm run build -w apps/api` |
+| Build Command | `npm ci --include=dev --no-audit --no-fund && npm run build -w apps/api` |
 | Start Command | `node apps/api/dist/server.js` |
 | Instance Type | Free |
 | Health Check Path | `/api/v1/health` |
 
+>`--include=dev` is not optional. Render sets `NODE_ENV=production`, which makes npm skip
+>devDependencies, and `tsup`, `vite` and `typescript` all live there. Without it the build fails
+>with `command failed: tsup`.
+
 Environment variables: `NODE_ENV=production`, `TRUST_PROXY=true`, `MONGODB_URI`,
 `MONGODB_DB_NAME=society_erp`, the four generated secrets, `SEED_DEMO_DATA=false`,
 `SEED_SUPER_ADMIN_EMAIL`, `SEED_SUPER_ADMIN_PASSWORD`, `EMAIL_DRIVER=console`,
-`PAYMENT_DRIVER=mock`. Leave `PORT` unset so Render injects its own.
+`PAYMENT_DRIVER=mock`, `MONGOMS_DISABLE_POSTINSTALL=1`. Leave `PORT` unset so Render injects its own.
 
 **Web: New → Static Site**, same repository.
 
 | Field | Value |
 |---|---|
 | Root Directory | leave blank |
-| Build Command | `npm ci --no-audit --no-fund && npm run build -w apps/web` |
+| Build Command | `npm ci --include=dev --no-audit --no-fund && npm run build -w apps/web` |
 | Publish Directory | `apps/web/dist` |
 
 Add one environment variable, `VITE_API_URL`, set to the API service URL with no trailing slash.

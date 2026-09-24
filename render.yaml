@@ -14,7 +14,9 @@ services:
     plan: free
     region: singapore
     rootDir: .
-    buildCommand: npm ci --no-audit --no-fund && npm run build -w apps/api
+    # --include=dev is required: NODE_ENV=production makes npm skip devDependencies, and the build
+    # tools (tsup, typescript) live there, so without it the build dies with 'command failed: tsup'.
+    buildCommand: npm ci --include=dev --no-audit --no-fund && npm run build -w apps/api
     startCommand: node apps/api/dist/server.js
     healthCheckPath: /api/v1/health
     # One instance: Socket.IO has no Redis adapter wired and, without REDIS_URL, jobs run in-process.
@@ -22,6 +24,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: MONGOMS_DISABLE_POSTINSTALL # skips a ~100 MB MongoDB binary download only the tests need
+        value: '1'
       - key: TRUST_PROXY # Render terminates TLS upstream; needed for real client IPs in rate limiting
         value: 'true'
       - key: MONGODB_URI # MongoDB Atlas SRV string; allow Render's outbound IPs in Atlas Network Access
@@ -63,7 +67,8 @@ services:
     name: society-erp-web
     runtime: static
     rootDir: .
-    buildCommand: npm ci --no-audit --no-fund && npm run build -w apps/web
+    # --include=dev: same reason as the API, vite and typescript are devDependencies.
+    buildCommand: npm ci --include=dev --no-audit --no-fund && npm run build -w apps/web
     staticPublishPath: apps/web/dist
     envVars:
       - key: VITE_API_URL # https URL of society-erp-api, no trailing slash. Baked in at build time.
