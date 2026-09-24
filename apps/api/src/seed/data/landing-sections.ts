@@ -1,0 +1,120 @@
+/** Initial website content. Fully editable from the Super Admin console (Website → Landing Page). */
+export const DEFAULT_LANDING_SECTIONS = [
+  {
+    page: 'home',
+    type: 'HERO',
+    key: 'hero',
+    sortOrder: 0,
+    title: 'Run your housing society like a modern business',
+    subtitle: 'Billing, payments, accounting, visitors, complaints, amenities and governance in one configurable platform.',
+    description: 'Built for RWAs, apartment complexes, gated communities and townships. Start in minutes, migrate from spreadsheets, configure everything without a developer.',
+    cta: { label: 'Start free trial', href: '/signup', secondaryLabel: 'Request a demo', secondaryHref: '/contact?type=DEMO_REQUEST' },
+    content: { badges: ['No setup fee', 'Free 14-day trial', 'Cancel anytime'], stats: [{ label: 'Modules', value: '30+' }, { label: 'Setup time', value: '< 1 day' }, { label: 'Uptime', value: '99.9%' }] },
+  },
+  {
+    page: 'home',
+    type: 'VALUE_PROPOSITION',
+    key: 'value',
+    sortOrder: 1,
+    title: 'Why committees choose Society ERP',
+    subtitle: 'Less chasing, more clarity.',
+    content: {
+      items: [
+        { icon: 'Rocket', title: 'Extremely easy onboarding', description: 'Guided setup wizard, spreadsheet import with preview and validation, and sensible defaults for every module.' },
+        { icon: 'SlidersHorizontal', title: 'Configure, do not code', description: 'Charge heads, categories, SLAs, approval workflows, roles and notifications are all editable by your admin.' },
+        { icon: 'ShieldCheck', title: 'Strong isolation & audit', description: 'Every record is scoped to your society with a transparent audit trail for every important change.' },
+        { icon: 'ArrowLeftRight', title: 'Painless committee handover', description: 'Hand over access to the next committee in one workflow while every document and ledger stays intact.' },
+      ],
+    },
+  },
+  {
+    page: 'home',
+    type: 'FEATURES',
+    key: 'features',
+    sortOrder: 2,
+    title: 'Everything a society needs',
+    subtitle: 'Finance, security, community and governance working together.',
+    content: {
+      items: [
+        { icon: 'Receipt', title: 'Configurable billing', description: 'Fixed, per-unit, area-based and metered charges with penalties, discounts and automatic invoices.' },
+        { icon: 'Wallet', title: 'Online collections', description: 'UPI, cards and net banking with server-verified payments, instant receipts and reconciliation.' },
+        { icon: 'BookOpenCheck', title: 'Double-entry accounting', description: 'Chart of accounts, funds, bank reconciliation, trial balance, P&L and balance sheet.' },
+        { icon: 'DoorOpen', title: 'Visitor & gate security', description: 'QR passes, walk-in approvals and a mobile-first guard app that works even on flaky networks.' },
+        { icon: 'MessageSquareWarning', title: 'Helpdesk with SLA', description: 'Categories, priorities, assignment, escalation and resident feedback.' },
+        { icon: 'Landmark', title: 'Governance', description: 'Meetings, AGM, resolutions, elections and a searchable document repository.' },
+      ],
+    },
+  },
+  {
+    page: 'home',
+    type: 'MODULES',
+    key: 'modules',
+    sortOrder: 3,
+    title: 'Enable only the modules you need',
+    subtitle: 'Every plan bundles modules; your admin switches them on or off anytime.',
+    content: { showFromCatalog: true, highlight: ['billing', 'payments', 'accounting', 'visitors', 'complaints', 'amenities', 'notices', 'meetings', 'documents', 'staff', 'vendors', 'reports'] },
+  },
+  {
+    page: 'home',
+    type: 'HOW_IT_WORKS',
+    key: 'how-it-works',
+    sortOrder: 4,
+    title: 'Live in three steps',
+    content: {
+      steps: [
+        { step: 1, title: 'Sign up', description: 'Create your society and admin account. Your trial starts immediately.' },
+        { step: 2, title: 'Import & configure', description: 'Upload your units and residents from Excel, pick your modules and billing rules.' },
+        { step: 3, title: 'Invite the community', description: 'Committee, staff, guards and residents get role-based access from day one.' },
+      ],
+    },
+  },
+  {
+    page: 'home',
+    type: 'SECURITY',
+    key: 'security',
+    sortOrder: 5,
+    title: 'Security and privacy by default',
+    subtitle: 'Your data belongs to your society.',
+    content: {
+      items: [
+        { icon: 'Lock', title: 'Tenant isolation', description: 'Society data is isolated at the database and API layer and verified by automated tests.' },
+        { icon: 'KeyRound', title: 'Role-based access', description: 'Fine-grained permissions per module; the server is always the security boundary.' },
+        { icon: 'ScrollText', title: 'Audit trail', description: 'Logins, role changes, billing, payments and exports are all recorded.' },
+        { icon: 'EyeOff', title: 'Privacy controls', description: 'Phone numbers, emails and documents are masked unless a role is allowed to see them.' },
+      ],
+    },
+  },
+  { page: 'home', type: 'PRICING', key: 'pricing', sortOrder: 6, title: 'Simple, transparent pricing', subtitle: 'Choose a plan that fits your society. Upgrade anytime.', content: { showToggle: true } },
+  {
+    page: 'home',
+    type: 'TESTIMONIALS',
+    key: 'testimonials',
+    sortOrder: 7,
+    title: 'Trusted by committees',
+    content: {
+      items: [
+        { name: 'Ramesh Iyer', role: 'Treasurer, Lakeview Residency', quote: 'Collections went from 60% to 94% in two months. Receipts are instant and the ledger finally matches the bank.', avatar: '' },
+        { name: 'Priya Nair', role: 'Secretary, Green Meadows RWA', quote: 'The visitor app made our guards faster and residents feel safer. Setup took an afternoon.', avatar: '' },
+        { name: 'Anil Shah', role: 'Chairman, Skyline Towers', quote: 'Handing over to the new committee was one click. Nothing was lost.', avatar: '' },
+      ],
+    },
+  },
+  {
+    page: 'home',
+    type: 'FAQ',
+    key: 'faq',
+    sortOrder: 8,
+    title: 'Frequently asked questions',
+    content: {
+      items: [
+        { question: 'Can we migrate from Excel or another ERP?', answer: 'Yes. Download our templates, upload your CSV/Excel, map columns, preview validation results and import. Nothing is imported without a preview.' },
+        { question: 'Do residents need to pay anything?', answer: 'No. Residents use the app for free. Societies pay a flat subscription based on the plan.' },
+        { question: 'What happens when the committee changes?', answer: 'Use Handover mode to revoke the previous committee, invite the new one and reassign roles. Data, documents and financial history stay intact.' },
+        { question: 'Is online payment mandatory?', answer: 'No. Record cash, cheque and bank transfers manually, or enable the payment gateway for online collections.' },
+        { question: 'Can we turn off modules we do not use?', answer: 'Yes. Society admins can disable optional modules anytime; data is preserved and restored when re-enabled.' },
+      ],
+    },
+  },
+  { page: 'home', type: 'CTA', key: 'cta', sortOrder: 9, title: 'Ready to modernise your society?', subtitle: 'Start your free trial today. No credit card required.', cta: { label: 'Start free trial', href: '/signup', secondaryLabel: 'Talk to us', secondaryHref: '/contact' }, content: {} },
+  { page: 'home', type: 'FOOTER', key: 'footer', sortOrder: 10, title: '', content: { useSettings: true } },
+];

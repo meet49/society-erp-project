@@ -1,0 +1,202 @@
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import dayjs from 'dayjs';
+import { setupTestApp, teardownTestApp, login, auth, createSociety, flush } from './helpers/app';
+import { contractService } from '../src/modules/assets/contracts.service';
+import { assetService } from '../src/modules/assets/assets.service';
+import { inventoryService } from '../src/modules/assets/inventory.service';
+import { domainEvents } from '../src/core/events/event-bus';
+import { Notification } from '../src/models/notification.model';
+import { Expense } from '../src/models/expense.model';
+
+let api: Awaited<ReturnType<typeof setupTestApp>>['api'];
+let s: Awaited<ReturnType<typeof createSociety>>;
+let other: Awaited<ReturnType<typeof createSociety>>;
+let admin = '';
+let adminUserId = '';
+let otherAdmin = '';
+let vendorId = '';
+const post = (path: string, token: string, body: Record<string, unknown>) => api.post(`/api/v1${path}`).set(auth(token)).send(body);
+const get = (path: string, token: string) => api.get(`/api/v1${path}`).set(auth(token));
+const patch = (path: string, token: string, body: Record<string, unknown>) => api.patch(`/api/v1${path}`).set(auth(token)).send(body);
+
+beforeAll(async () => {
+  ({ api } = await setupTestApp());
+  s = await createSociety({ planSlug: 'growth' });
+  other = await createSociety({ planSlug: 'growth' });
+  const a = await login(api, s.adminEmail, s.adminPassword);
+  admin = a.accessToken;
+  adminUserId = a.context.user.id;
+  otherAdmin = (await login(api, other.adminEmail, other.adminPassword)).accessToken;
+  vendorId = (await post('/vendors', admin, { name: 'Otis Lifts', categoryKey: 'lift', contactName: 'Service desk', phone: '18001234567', paymentTermsDays: 15 })).body.data.id;
+});
+afterAll(teardownTestApp);
+
+describe('assets', () => {
+  let liftId = '';
+  it('registers assets with book value, logs maintenance that books an expense and tracks lifecycle', async () => {
+    const created = await post('/assets', admin, { name: 'Passenger lift A', categoryKey: 'lift', purchaseDate: dayjs().subtract(5, 'year').toISOString(), purchaseCost: 1_000_000, expectedLifeYears: 20, salvageValue: 0, maintenanceIntervalMonths: 3, warrantyUntil: dayjs().add(30, 'day').toISOString(), vendorId, location: 'Tower A' });
+    expect(created.status).toBe(201);
+    liftId = created.body.data.id;
+    expect(created.body.data.assetCode).toMatch(/^AST/);
+    expect(created.body.data.categoryKey).toBe('LIFT');
+    expect(created.body.data.vendorName).toBe('Otis Lifts');
+    expect(created.body.data.currentValue).toBeGreaterThan(740_000);
+    expect(created.body.data.currentValue).toBeLessThan(760_000);
+    expect(created.body.data.warrantyActive).toBe(true);
+    expect((await post('/assets', admin, { name: 'Bad', categoryKey: 'NOPE' })).status).toBe(422);
+    expect((await get(`/assets/${liftId}`, otherAdmin)).status).toBe(404);
+    const down = await post(`/assets/${liftId}/status`, admin, { status: 'UNDER_MAINTENANCE', note: 'Door sensor failure' });
+    expect(down.body.data.status).toBe('UNDER_MAINTENANCE');
+    const fixed = await post(`/assets/${liftId}/maintenance`, admin, { type: 'BREAKDOWN', description: 'Door sensor replaced', cost: 4500, vendorId, createExpense: true, downtimeHours: 6 });
+    expect(fixed.status).toBe(200);
+    expect(fixed.body.data.status).toBe('ACTIVE');
+    expect(fixed.body.data.maintenanceLog).toHaveLength(2);
+    const entry = fixed.body.data.maintenanceLog.find((m: any) => m.type === 'BREAKDOWN' && m.cost === 4500);
+    expect(entry.expenseId.expenseNumber).toMatch(/^EXP/);
+    expect(await Expense.countDocuments({ societyId: s.societyId, assetId: liftId })).toBe(1);
+    expect(dayjs(fixed.body.data.nextMaintenanceDue).diff(dayjs(), 'day')).toBeGreaterThanOrEqual(85);
+    expect(fixed.body.data.maintenanceCost).toBe(4500);
+    const stats = await get('/assets/stats', admin);
+    expect(stats.body.data.total).toBe(1);
+    expect(stats.body.data.maintenanceSpend12m).toBe(4500);
+    expect(stats.body.data.warrantyExpiring).toBe(1);
+    const csv = await get('/assets/export', admin);
+    expect(csv.text).toContain('Passenger lift A');
+  });
+
+  it('reminds about warranty and maintenance once, and disposes assets', async () => {
+    await assetService.update(s.societyId, liftId, { nextMaintenanceDue: dayjs().add(3, 'day').toDate() }, adminUserId);
+    const r1 = await assetService.sweep();
+    expect(r1).toEqual({ maintenance: 1, warranty: 1 });
+    expect((await assetService.sweep())).toEqual({ maintenance: 0, warranty: 0 });
+    await flush(300);
+    expect(await Notification.countDocuments({ societyId: s.societyId, userId: adminUserId, type: 'asset.maintenance_due', 'data.assetId': liftId })).toBe(1);
+    expect(await Notification.countDocuments({ societyId: s.societyId, userId: adminUserId, type: 'asset.warranty_expiring', 'data.assetId': liftId })).toBe(1);
+    const pump = (await post('/assets', admin, { name: 'Old pump', categoryKey: 'PUMP', purchaseCost: 20_000 })).body.data;
+    const disposed = await post(`/assets/${pump.id}/status`, admin, { status: 'DISPOSED', disposal: { reason: 'Beyond repair', amount: 1500 } });
+    expect(disposed.body.data.status).toBe('DISPOSED');
+    expect(disposed.body.data.disposal.amount).toBe(1500);
+    expect((await post(`/assets/${pump.id}/maintenance`, admin, { description: 'nope' })).status).toBe(409);
+    expect((await get('/assets', admin)).body.data).toHaveLength(1);
+    expect((await get('/assets?includeDisposed=true', admin)).body.data).toHaveLength(2);
+  });
+});
+
+describe('contracts & AMC', () => {
+  let liftId = '';
+  let amcId = '';
+  it('creates an AMC covering assets, logs visits into the asset log and records payments as expenses', async () => {
+    liftId = (await get('/assets', admin)).body.data[0].id;
+    const created = await post('/contracts', admin, { title: 'Lift AMC', type: 'AMC', vendorId, startDate: dayjs().subtract(1, 'month').toISOString(), endDate: dayjs().add(20, 'day').toISOString(), value: 96_000, billingCycle: 'QUARTERLY', amountPerCycle: 24_000, assetIds: [liftId], visitFrequencyMonths: 1, activate: true });
+    expect(created.status).toBe(201);
+    amcId = created.body.data.id;
+    expect(created.body.data.contractNumber).toMatch(/^CON/);
+    expect(created.body.data.status).toBe('ACTIVE');
+    expect(created.body.data.vendorName).toBe('Otis Lifts');
+    expect(created.body.data.paymentTermsDays).toBe(15);
+    expect(created.body.data.daysRemaining).toBeGreaterThanOrEqual(19);
+    expect(created.body.data.nextVisitDue).toBeTruthy();
+    expect((await post('/contracts', admin, { title: 'Bad', vendorId, startDate: '2025-01-10', endDate: '2025-01-01' })).status).toBe(422);
+    expect((await get(`/contracts/${amcId}`, otherAdmin)).status).toBe(404);
+    expect((await get(`/assets/${liftId}`, admin)).body.data.contractId.id).toBe(amcId);
+    const visit = await post(`/contracts/${amcId}/visits`, admin, { note: 'Monthly check done' });
+    expect(visit.body.data.visits).toHaveLength(1);
+    expect(dayjs(visit.body.data.nextVisitDue).diff(dayjs(), 'day')).toBeGreaterThanOrEqual(27);
+    const asset = await get(`/assets/${liftId}`, admin);
+    expect(asset.body.data.maintenanceLog.some((m: any) => m.type === 'AMC_VISIT' && m.contractId)).toBe(true);
+    // small enough for the default workflow rule to auto-approve; bigger bills route to the committee like any expense
+    const payment = await post(`/contracts/${amcId}/payments`, admin, { amount: 1_500, billNumber: 'AMC/Q1', submit: true });
+    expect(payment.status).toBe(201);
+    expect(payment.body.data.contractId).toBe(amcId);
+    expect(payment.body.data.approvalStatus).toBe('APPROVED');
+    const summary = await get(`/contracts/${amcId}/payments`, admin);
+    expect(summary.body.data.billed).toBe(1_500);
+    expect(summary.body.data.count).toBe(1);
+  });
+
+  it('sends expiry reminders once per threshold, expires, renews and terminates', async () => {
+    const r1 = await contractService.sweep();
+    expect(r1.reminders).toBe(1);
+    expect((await contractService.sweep()).reminders).toBe(0);
+    await flush(300);
+    expect(await Notification.countDocuments({ societyId: s.societyId, userId: adminUserId, type: 'contract.expiring', 'data.contractId': amcId })).toBe(1);
+    const nearer = await patch(`/contracts/${amcId}`, admin, { endDate: dayjs().add(5, 'day').toISOString() });
+    expect(nearer.body.data.remindersSent).toEqual([]);
+    expect((await contractService.sweep()).reminders).toBe(1);
+    await patch(`/contracts/${amcId}`, admin, { endDate: dayjs().subtract(1, 'minute').toISOString() });
+    const r3 = await contractService.sweep();
+    expect(r3.expired).toBe(1);
+    await flush(300);
+    expect((await get(`/contracts/${amcId}`, admin)).body.data.status).toBe('EXPIRED');
+    expect(await Notification.countDocuments({ societyId: s.societyId, userId: adminUserId, type: 'contract.expired', 'data.contractId': amcId })).toBe(1);
+    const renewed = await post(`/contracts/${amcId}/renew`, admin, { endDate: dayjs().add(1, 'year').toISOString(), value: 105_000 });
+    expect(renewed.status).toBe(201);
+    expect(renewed.body.data.status).toBe('ACTIVE');
+    expect(renewed.body.data.value).toBe(105_000);
+    expect(renewed.body.data.renewedFromId.contractNumber).toBeTruthy();
+    expect(renewed.body.data.assetIds.map((a: any) => a.id)).toContain(liftId);
+    const old = await get(`/contracts/${amcId}`, admin);
+    expect(old.body.data.status).toBe('RENEWED');
+    expect(old.body.data.renewedToId.id).toBe(renewed.body.data.id);
+    expect((await get(`/assets/${liftId}`, admin)).body.data.contractId.id).toBe(renewed.body.data.id);
+    expect((await post(`/contracts/${amcId}/renew`, admin, { endDate: dayjs().add(2, 'year').toISOString() })).status).toBe(409);
+    const terminated = await post(`/contracts/${renewed.body.data.id}/terminate`, admin, { reason: 'Switching vendor' });
+    expect(terminated.body.data.status).toBe('TERMINATED');
+    expect((await get(`/assets/${liftId}`, admin)).body.data.contractId).toBeNull();
+    const stats = await get('/contracts/stats', admin);
+    expect(stats.body.data.byStatus.RENEWED).toBe(1);
+    expect(stats.body.data.byStatus.TERMINATED).toBe(1);
+    expect((await get('/contracts/export', admin)).text).toContain('Lift AMC');
+  });
+});
+
+describe('inventory', () => {
+  let itemId = '';
+  it('moves stock atomically with moving-average cost and refuses to go negative', async () => {
+    const created = await post('/inventory/items', admin, { name: 'LED bulb 9W', categoryKey: 'electrical', unit: 'nos', minimumLevel: 5, reorderQuantity: 10, openingStock: 10, unitCost: 100 });
+    expect(created.status).toBe(201);
+    itemId = created.body.data.id;
+    expect(created.body.data.sku).toMatch(/^INV/);
+    expect(created.body.data.currentStock).toBe(10);
+    expect(created.body.data.recentTransactions).toHaveLength(1);
+    expect((await post('/inventory/items', admin, { name: 'Dup', categoryKey: 'ELECTRICAL', sku: created.body.data.sku })).status).toBe(409);
+    const stockIn = await post(`/inventory/items/${itemId}/transactions`, admin, { type: 'IN', quantity: 10, unitCost: 120, reference: { type: 'MANUAL', label: 'Local purchase' }, clientRef: 'in-1' });
+    expect(stockIn.status).toBe(201);
+    expect(stockIn.body.data.balanceAfter).toBe(20);
+    expect(stockIn.body.data.item.unitCost).toBe(110);
+    expect((await post(`/inventory/items/${itemId}/transactions`, admin, { type: 'IN', quantity: 10, unitCost: 120, clientRef: 'in-1' })).body.data.replayed).toBe(true);
+    const out = await post(`/inventory/items/${itemId}/transactions`, admin, { type: 'OUT', quantity: 17, issuedTo: 'Electrician' });
+    expect(out.body.data.quantity).toBe(-17);
+    expect(out.body.data.balanceAfter).toBe(3);
+    const tooMany = await post(`/inventory/items/${itemId}/transactions`, admin, { type: 'OUT', quantity: 5 });
+    expect(tooMany.status).toBe(409);
+    expect(tooMany.body.details.available).toBe(3);
+    const counted = await post(`/inventory/items/${itemId}/transactions`, admin, { type: 'ADJUST', quantity: 4, note: 'Physical count' });
+    expect(counted.body.data.quantity).toBe(1);
+    expect(counted.body.data.balanceAfter).toBe(4);
+    expect((await get(`/inventory/items/${itemId}`, otherAdmin)).status).toBe(404);
+    const history = await get(`/inventory/transactions?itemId=${itemId}`, admin);
+    expect(history.body.data).toHaveLength(4);
+    const stats = await get('/inventory/stats', admin);
+    expect(stats.body.data.items).toBe(1);
+    expect(stats.body.data.lowStock).toBe(1);
+    expect(stats.body.data.stockValue).toBe(440);
+  });
+
+  it('alerts on low stock once, clears when restocked, and stocks in goods received on a purchase order', async () => {
+    expect((await inventoryService.sweep()).alerts).toBe(1);
+    expect((await inventoryService.sweep()).alerts).toBe(0);
+    await flush(300);
+    expect(await Notification.countDocuments({ societyId: s.societyId, userId: adminUserId, type: 'inventory.low_stock', 'data.itemId': itemId })).toBe(1);
+    domainEvents.emit('purchase_order.received', { poId: '507f1f77bcf86cd799439011', poNumber: 'PO/0001', complete: true, received: [{ itemId: 'line1', receivedQuantity: 6 }], items: [{ itemId: 'line1', inventoryItemId: itemId, description: 'LED bulb 9W', receivedQuantity: 6, rate: 90 }] }, { societyId: s.societyId, actorId: adminUserId });
+    await flush(400);
+    const item = await get(`/inventory/items/${itemId}`, admin);
+    expect(item.body.data.currentStock).toBe(10);
+    expect(item.body.data.lowStockAlertedAt).toBeNull();
+    expect(item.body.data.recentTransactions[0].reference.type).toBe('PURCHASE_ORDER');
+    expect((await inventoryService.sweep()).alerts).toBe(0);
+    const csv = await get('/inventory/export', admin);
+    expect(csv.text).toContain('LED bulb 9W');
+    expect((await get('/inventory/items?lowStockOnly=true', admin)).body.data).toHaveLength(0);
+  });
+});

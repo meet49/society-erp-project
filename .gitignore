@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+coverage/
+.data/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+apps/web/dev-dist/
+playwright-report/
+test-results/
+apps/api/uploads/
+.vite/
+*.tsbuildinfo

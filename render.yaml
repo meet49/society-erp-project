@@ -1,0 +1,87 @@
+# Render Blueprint: API web service + web static site.
+# Create with Render Dashboard → New → Blueprint, pointed at this repository.
+#
+# Values marked `sync: false` are filled in the Render dashboard after the first deploy, because they
+# depend on the URLs Render assigns. Secrets marked `generateValue: true` are generated once by Render
+# and kept across deploys; never commit real secrets to this file.
+services:
+  # ---------------------------------------------------------------- API (long-running Node process)
+  - type: web
+    name: society-erp-api
+    runtime: node
+    plan: starter # 'free' spins down when idle, which stops background jobs; see docs/DEPLOYMENT.md
+    region: singapore
+    rootDir: .
+    buildCommand: npm ci --no-audit --no-fund && npm run build -w apps/api
+    startCommand: node apps/api/dist/server.js
+    healthCheckPath: /api/v1/health
+    # One instance: Socket.IO has no Redis adapter wired and, without REDIS_URL, jobs run in-process.
+    numInstances: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY # Render terminates TLS upstream; needed for real client IPs in rate limiting
+        value: 'true'
+      - key: MONGODB_URI # MongoDB Atlas SRV string; allow Render's outbound IPs in Atlas Network Access
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: society_erp
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: SIGNED_URL_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY # encrypts stored gateway credentials; losing it makes them unreadable
+        generateValue: true
+      - key: APP_URL # https URL of the static site, once Render has created it
+        sync: false
+      - key: API_URL # https URL of this service
+        sync: false
+      - key: CORS_ORIGINS # must contain the web origin exactly, comma separated
+        sync: false
+      - key: SEED_SUPER_ADMIN_EMAIL
+        sync: false
+      - key: SEED_SUPER_ADMIN_PASSWORD
+        sync: false
+      - key: SEED_DEMO_DATA
+        value: 'false'
+      # Uploads: the container filesystem is wiped on every deploy. Either attach the disk below and
+      # keep STORAGE_DRIVER=local, or switch to s3 and fill the S3_* variables in the dashboard.
+      - key: STORAGE_DRIVER
+        value: local
+      - key: STORAGE_LOCAL_PATH
+        value: /var/data/uploads
+      - key: EMAIL_DRIVER # set to 'smtp' and add SMTP_* in the dashboard to send real mail
+        value: console
+      - key: PAYMENT_DRIVER # platform subscription billing; societies configure their own gateway in-app
+        value: mock
+    disk:
+      name: uploads
+      mountPath: /var/data
+      sizeGB: 1
+
+  # ---------------------------------------------------------------- Web (static build of the PWA)
+  - type: web
+    name: society-erp-web
+    runtime: static
+    rootDir: .
+    buildCommand: npm ci --no-audit --no-fund && npm run build -w apps/web
+    staticPublishPath: apps/web/dist
+    envVars:
+      - key: VITE_API_URL # https URL of society-erp-api, no trailing slash. Baked in at build time.
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache
+      - path: /manifest.webmanifest
+        name: Cache-Control
+        value: no-cache

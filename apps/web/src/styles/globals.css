@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 98%;
+    --foreground: 224 30% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 30% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 30% 12%;
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 94%;
+    --secondary-foreground: 224 20% 20%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 243 60% 96%;
+    --accent-foreground: 243 75% 40%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 60% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 30 60% 12%;
+    --border: 220 13% 90%;
+    --input: 220 13% 88%;
+    --ring: 243 75% 59%;
+    --sidebar: 224 32% 11%;
+    --sidebar-foreground: 220 15% 85%;
+    --sidebar-accent: 224 28% 18%;
+    --sidebar-border: 224 24% 20%;
+    --radius: 0.625rem;
+    /* data-viz roles (validated categorical order; light steps) */
+    --viz-surface: #fcfcfb;
+    --viz-text: #0b0b0b;
+    --viz-text-2: #52514e;
+    --viz-grid: #e6e5e1;
+    --viz-1: #2a78d6;
+    --viz-2: #eb6834;
+    --viz-3: #1baf7a;
+    --viz-4: #eda100;
+    --viz-5: #e87ba4;
+    --viz-6: #008300;
+    --viz-seq-1: #b7d3f6;
+    --viz-seq-2: #6da7ec;
+    --viz-seq-3: #2a78d6;
+    --viz-seq-4: #1c5cab;
+    --viz-good: #0ca30c;
+    --viz-warning: #fab219;
+    --viz-serious: #ec835a;
+    --viz-critical: #d03b3b;
+  }
+
+  .dark {
+    --background: 224 32% 8%;
+    --foreground: 220 15% 92%;
+    --card: 224 28% 11%;
+    --card-foreground: 220 15% 92%;
+    --popover: 224 28% 11%;
+    --popover-foreground: 220 15% 92%;
+    --primary: 243 80% 68%;
+    --primary-foreground: 224 32% 8%;
+    --secondary: 224 24% 17%;
+    --secondary-foreground: 220 15% 88%;
+    --muted: 224 24% 15%;
+    --muted-foreground: 220 10% 62%;
+    --accent: 243 40% 20%;
+    --accent-foreground: 243 80% 85%;
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 55% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 30 60% 10%;
+    --border: 224 20% 20%;
+    --input: 224 20% 22%;
+    --ring: 243 80% 68%;
+    --sidebar: 224 36% 6%;
+    --sidebar-foreground: 220 15% 82%;
+    --sidebar-accent: 224 28% 14%;
+    --sidebar-border: 224 24% 15%;
+    /* data-viz roles: same hues stepped for the dark surface (validated) */
+    --viz-surface: #1a1a19;
+    --viz-text: #ffffff;
+    --viz-text-2: #c3c2b7;
+    --viz-grid: #34343a;
+    --viz-1: #3987e5;
+    --viz-2: #d95926;
+    --viz-3: #199e70;
+    --viz-4: #c98500;
+    --viz-5: #d55181;
+    --viz-6: #008300;
+    --viz-seq-1: #184f95;
+    --viz-seq-2: #256abf;
+    --viz-seq-3: #3987e5;
+    --viz-seq-4: #86b6ef;
+  }
+
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+  ::selection {
+    @apply bg-primary/20;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-muted-foreground/30;
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
