@@ -9,7 +9,9 @@ services:
   - type: web
     name: society-erp-api
     runtime: node
-    plan: starter # 'free' spins down when idle, which stops background jobs; see docs/DEPLOYMENT.md
+    # 'free' spins down after 15 minutes idle, which pauses every scheduled job until the next
+    # request wakes it. Move to 'starter' before real use; see docs/DEPLOYMENT.md.
+    plan: free
     region: singapore
     rootDir: .
     buildCommand: npm ci --no-audit --no-fund && npm run build -w apps/api
@@ -46,20 +48,15 @@ services:
         sync: false
       - key: SEED_DEMO_DATA
         value: 'false'
-      # Uploads: the container filesystem is wiped on every deploy. Either attach the disk below and
-      # keep STORAGE_DRIVER=local, or switch to s3 and fill the S3_* variables in the dashboard.
+      # Uploads: free instances get no persistent disk, so anything uploaded is lost on redeploy and
+      # on spin-down. Fine for a trial. For real use either move to a paid plan and attach a disk, or
+      # set STORAGE_DRIVER=s3 and fill the S3_* variables in the dashboard.
       - key: STORAGE_DRIVER
         value: local
-      - key: STORAGE_LOCAL_PATH
-        value: /var/data/uploads
       - key: EMAIL_DRIVER # set to 'smtp' and add SMTP_* in the dashboard to send real mail
         value: console
       - key: PAYMENT_DRIVER # platform subscription billing; societies configure their own gateway in-app
         value: mock
-    disk:
-      name: uploads
-      mountPath: /var/data
-      sizeGB: 1
 
   # ---------------------------------------------------------------- Web (static build of the PWA)
   - type: web

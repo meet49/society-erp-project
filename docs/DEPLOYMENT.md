@@ -80,6 +80,57 @@ any container/VM host) and put the static PWA wherever you like.
 4. Redeploy the static site after setting `VITE_API_URL`. It is compiled into the bundle at build
    time, so changing it needs a rebuild, not a restart.
 
+### Option A2: free tier, created by hand
+
+Render asks for a payment method before it will run a Blueprint. The free tier itself does not need
+one, so create the two services manually and skip `render.yaml` entirely.
+
+First generate four secrets locally and keep them somewhere safe:
+
+```bash
+node -e "for (const k of ['JWT_ACCESS_SECRET','JWT_REFRESH_SECRET','SIGNED_URL_SECRET','ENCRYPTION_KEY']) console.log(k+'='+require('crypto').randomBytes(48).toString('base64url'))"
+```
+
+**API: New → Web Service**, pointed at the repository.
+
+| Field | Value |
+|---|---|
+| Root Directory | leave blank, the repo root |
+| Runtime | Node |
+| Build Command | `npm ci --no-audit --no-fund && npm run build -w apps/api` |
+| Start Command | `node apps/api/dist/server.js` |
+| Instance Type | Free |
+| Health Check Path | `/api/v1/health` |
+
+Environment variables: `NODE_ENV=production`, `TRUST_PROXY=true`, `MONGODB_URI`,
+`MONGODB_DB_NAME=society_erp`, the four generated secrets, `SEED_DEMO_DATA=false`,
+`SEED_SUPER_ADMIN_EMAIL`, `SEED_SUPER_ADMIN_PASSWORD`, `EMAIL_DRIVER=console`,
+`PAYMENT_DRIVER=mock`. Leave `PORT` unset so Render injects its own.
+
+**Web: New → Static Site**, same repository.
+
+| Field | Value |
+|---|---|
+| Root Directory | leave blank |
+| Build Command | `npm ci --no-audit --no-fund && npm run build -w apps/web` |
+| Publish Directory | `apps/web/dist` |
+
+Add one environment variable, `VITE_API_URL`, set to the API service URL with no trailing slash.
+Under Redirects/Rewrites add a rule of type **Rewrite** from `/*` to `/index.html`, otherwise any
+deep link such as `/app/billing` returns 404 on refresh.
+
+Finally set `API_URL`, `APP_URL` and `CORS_ORIGINS` on the API to the two real URLs and redeploy
+both services.
+
+What the free tier costs you:
+
+- **The API sleeps after 15 minutes idle** and takes about a minute to wake. While it sleeps nothing
+  is scheduled, so invoicing, reminders, SLA escalation, contract expiry and the emergency sweep do
+  not run. Acceptable for a demo, not for a live society.
+- **No persistent disk**, so uploaded documents and photos disappear on every redeploy and every
+  spin-down. Move to S3 (`STORAGE_DRIVER=s3`) or a paid plan with a disk before real use.
+- **MongoDB Atlas M0** is free and is enough to evaluate the system.
+
 ### Option B: API on Render, web on Vercel
 
 Deploy the API as in Option A, then import the repository into Vercel. `vercel.json` sets the build
