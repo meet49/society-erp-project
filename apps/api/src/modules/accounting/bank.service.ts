@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import dayjs from 'dayjs';
-import customParseFormat from 'dayjs/plugin/customParseFormat';
+// .js is required: dayjs ships no exports map for its plugin subpaths, so Node's ESM resolver
+// rejects the extensionless form at runtime even though tsx and bundlers accept it.
+import customParseFormat from 'dayjs/plugin/customParseFormat.js';
 import { BankAccount } from '../../models/bank-account.model';
 import { BankTransaction } from '../../models/bank-transaction.model';
 import { Payment } from '../../models/payment.model';
