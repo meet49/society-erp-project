@@ -107,7 +107,7 @@ node -e "for (const k of ['JWT_ACCESS_SECRET','JWT_REFRESH_SECRET','SIGNED_URL_S
 >with `command failed: tsup`.
 
 Environment variables: `NODE_ENV=production`, `TRUST_PROXY=true`, `MONGODB_URI`,
-`MONGODB_DB_NAME=society_erp`, the four generated secrets, `SEED_DEMO_DATA=false`,
+`MONGODB_DB_NAME=society_erp`, the four generated secrets,
 `SEED_SUPER_ADMIN_EMAIL`, `SEED_SUPER_ADMIN_PASSWORD`, `EMAIL_DRIVER=console`,
 `PAYMENT_DRIVER=mock`, `MONGOMS_DISABLE_POSTINSTALL=1`. Leave `PORT` unset so Render injects its own.
 
@@ -155,8 +155,10 @@ with `VITE_API_URL` instead; the API already sends the right CORS headers for it
 - **MongoDB Atlas network access**: allow Render's outbound addresses, or `0.0.0.0/0` while testing.
   A blocked cluster shows up as a failing health check, not a crash.
 - **Seed the platform**: bootstrap data (modules, permissions, plans, templates, super admin) is
-  written automatically at every API start. `SEED_DEMO_DATA=false` keeps the demo society out of
-  production; run `node apps/api/dist/seed.js` from a Render Shell if you do want it.
+  written automatically at every API start, so a fresh deploy is usable immediately. The demo society
+  is separate and never created automatically. To load it, run the seed against the same database,
+  either `node apps/api/dist/seed.js` from a Render Shell (paid plans) or `npm run seed` on your own
+  machine with `MONGODB_URI` pointing at the deployed cluster. See `docs/DEMO-GUIDE.md`.
 - **Sign in and change the super admin password** immediately.
 - **Uploads**: the container filesystem is replaced on every deploy. The blueprint attaches a 1 GB
   disk at `/var/data` for `STORAGE_DRIVER=local`. For anything real, switch to `STORAGE_DRIVER=s3`

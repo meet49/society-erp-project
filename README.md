@@ -81,8 +81,9 @@ e2e               Playwright specs
 docs              architecture, deployment, operations
 ```
 
-See `docs/ARCHITECTURE.md` for the engines and access hierarchy, `docs/DEPLOYMENT.md` for Docker /
-environment configuration and `docs/OPERATIONS.md` for migrations, backups and recovery.
+See `docs/ARCHITECTURE.md` for the engines and access hierarchy, `docs/DEPLOYMENT.md` for Docker,
+Render, Vercel and environment configuration, `docs/OPERATIONS.md` for migrations, backups and
+recovery, and `docs/DEMO-GUIDE.md` for loading demo data and presenting the system to a society.
 
 ## Billing & payments
 

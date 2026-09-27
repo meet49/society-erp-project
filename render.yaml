@@ -50,8 +50,6 @@ services:
         sync: false
       - key: SEED_SUPER_ADMIN_PASSWORD
         sync: false
-      - key: SEED_DEMO_DATA
-        value: 'false'
       # Uploads: free instances get no persistent disk, so anything uploaded is lost on redeploy and
       # on spin-down. Fine for a trial. For real use either move to a paid plan and attach a disk, or
       # set STORAGE_DRIVER=s3 and fill the S3_* variables in the dashboard.
