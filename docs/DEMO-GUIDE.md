@@ -140,6 +140,113 @@ Close with something concrete for them.
 - Show **Settings → Modules** and switch a module off to make the point that they pay for and see
   only what they use.
 
+## 4b. Setting up a real society, end to end
+
+This is the flow to follow when the committee says yes and you onboard them for real. It is also the
+best thing to walk through on screen if they ask "how would we start?".
+
+### Step 1: create the society
+
+Two ways in.
+
+- **The society signs itself up** at `/signup`. The form collects the society name, **type**, city and
+  approximate unit count, then the admin's name, email and password, then the plan and billing cycle.
+  The person who signs up becomes the society admin and chooses their own password there and then.
+- **You create it for them** from the platform console at `/admin`, then invite their admin by email.
+
+Society type is picked at this step and drives nothing structural, it is descriptive:
+`APARTMENT`, `VILLA`, `TOWNSHIP`, `COOPERATIVE`, `RWA`, `GATED_COMMUNITY`, `MIXED`.
+
+### Step 2: the onboarding wizard
+
+The admin's first login lands on `/app/onboarding`, six steps: Society profile, Buildings, Billing,
+Modules, Notifications, Finish. It can be revisited at any time; nothing is locked in.
+
+### Step 3: structure, which is where apartment shape is decided
+
+Create one **building** per physical block. The type is a label:
+`TOWER`, `BUILDING`, `WING`, `BLOCK`, `PHASE`, `STREET`.
+
+| Society shape | Buildings | Units |
+|---|---|---|
+| Apartment, several towers | one `TOWER` each: Tower A code `A`, Tower B code `B` | bulk create per tower |
+| Single building with wings | one `WING` each: `A`, `B` | bulk create per wing |
+| Villa or township | one `PHASE` or `STREET` per sector | create with type `VILLA` |
+| Mixed use | towers plus one `BLOCK` for shops | unit type `SHOP` for the commercial ones |
+
+Then **bulk create units** rather than adding them one at a time. You give a floor range, how many
+units per floor, and a numbering pattern. Available tokens:
+
+| Token | Meaning |
+|---|---|
+| `{building}` | the building code, for example `A` |
+| `{floor}` | floor number |
+| `{seq}` | position on the floor, 1, 2, 3 |
+| `{seq2}` | the same, zero padded, 01, 02, 03 |
+| `{number}` | the running count across the whole run |
+
+The default `{floor}{seq2}` on floors 1 to 10 with 4 per floor gives 101, 102, 103, 104, 201 and so
+on, forty units in one action. Every unit also gets a globally unique code of the form `A-101`, which
+is what residents, vehicles and invoices are matched against later.
+
+If they already keep a flat register in Excel, skip all of this and use
+**Settings, then Data import, then Units**. Buildings are created automatically from the building
+code column, and opening dues can come in on the same sheet.
+
+### Step 4: residents, and who creates their password
+
+Nobody can register themselves as a resident. There is no public resident signup, by design: you
+cannot let a stranger claim flat A-101. But the admin never sets anyone's password either.
+
+The real flow is an invitation:
+
+1. The admin creates the resident record against a unit, with name, type (`OWNER`, `TENANT`,
+   `FAMILY`), phone and email.
+2. The system emails that person an invitation link, valid for a configurable number of days.
+3. They open the link, set **their own** password, and land on the resident home at `/app/my`.
+
+To avoid doing this one resident at a time, use **Settings, then Data import, then Residents**. The
+sheet needs a unit code, name and type per row, with phone and email optional. Tick **"Create logins
+and email invitations"** during the mapping step and every resident with an email address is invited
+in one run. That is how you onboard two hundred flats in an afternoon.
+
+A resident who does not want app access simply gets no email address on their record. They still
+exist for billing and the gate.
+
+For someone moving in later, there is a move-in request that an admin approves, rather than
+self-registration.
+
+### Step 5: staff and the gate
+
+Guards and other staff are society **users**, not residents. Create them under
+Settings, then Users, and give them the `SECURITY_GUARD` role. They land on `/guard` and cannot reach
+billing, accounting, members or settings at all.
+
+### Invitations need working email
+
+An invitation is only useful if it reaches the person. Two settings decide that:
+
+- With `EMAIL_DRIVER=console`, which is the default, nothing is sent. The message is written to the
+  service log instead.
+- In production the API also stops returning the invite link in its response, on purpose, so an
+  admin cannot read other people's invitation tokens.
+
+Together that means **invitations silently go nowhere until you configure SMTP**. On the API service
+set these, then redeploy:
+
+```
+EMAIL_DRIVER=smtp
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=<your gmail address>
+SMTP_PASS=<a Google app password, not your account password>
+EMAIL_FROM=Society ERP <your gmail address>
+```
+
+`SMTP_SECURE=true` is required for port 465. Use 587 with `SMTP_SECURE=false` if you prefer STARTTLS.
+Verify by inviting yourself before you invite anyone else.
+
 ## 5. Free plan limits, and how to talk about them
 
 Be straight about these. Committees respect it, and all three disappear on a paid plan.
