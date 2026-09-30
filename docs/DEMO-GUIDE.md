@@ -233,10 +233,31 @@ An invitation is only useful if it reaches the person. Two settings decide that:
 
 Together that means **invitations silently go nowhere until email is configured**.
 
-**On Render, do not use SMTP.** Render and most PaaS hosts filter outbound ports 25, 465 and 587 to
-stop spam, so nodemailer never completes the TCP handshake and the job fails with `ETIMEDOUT` on
-`CONN` however correct the credentials are. The same settings work from a laptop, which makes this
-look like a credentials problem when it is a network one. Use the HTTPS email driver instead:
+**Render free instances block outbound SMTP.** Ports 25, 465 and 587 are all filtered, a change Render
+made in September 2025 to curb spam. Port 25 is blocked on every plan. Because Gmail only listens on
+465 and 587, **Gmail SMTP cannot work on a free Render service at all**, no matter what you put in the
+variables. The handshake never completes and the job fails with `ETIMEDOUT` on `CONN`. The same
+settings work from a laptop, which makes it look like a credentials problem when it is a network one.
+
+Two ways out, both free and neither needing a card.
+
+**Option 1, stay on SMTP using port 2525.** Render does not block 2525, and Brevo's relay accepts it.
+No code change, only variables:
+
+```
+EMAIL_DRIVER=smtp
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=2525
+SMTP_SECURE=false
+SMTP_USER=<your Brevo SMTP login>
+SMTP_PASS=<your Brevo SMTP key, not the API key>
+EMAIL_FROM=Society ERP <your verified sender address>
+```
+
+`SMTP_SECURE=false` is correct here: 2525 starts in the clear and upgrades through STARTTLS, which the
+transport now requires before it sends the credentials.
+
+**Option 2, skip SMTP and use the HTTPS API.** Nothing on port 443 is ever blocked:
 
 ```
 EMAIL_DRIVER=brevo
@@ -244,21 +265,10 @@ BREVO_API_KEY=<key from Brevo, Settings then SMTP & API>
 EMAIL_FROM=Society ERP <your verified sender address>
 ```
 
-Brevo sends over port 443, which is never blocked. The sender address has to be verified in Brevo
-first, and a plain Gmail address is fine for that. Any other HTTPS email API works the same way; the
-provider interface has one method.
+Either way the sender address must be verified in Brevo first, and a plain Gmail address is fine for
+that. The free tier is 300 emails a day with no time limit. Invite yourself before anyone else.
 
-On a host that does allow SMTP, the nodemailer driver is still there:
-
-```
-EMAIL_DRIVER=smtp
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=465
-SMTP_SECURE=true
-SMTP_USER=<your gmail address>
-SMTP_PASS=<a Google app password, not your account password>
-EMAIL_FROM=Society ERP <your gmail address>
-```
+Paid Render instances do allow 465 and 587, so Gmail SMTP starts working the moment you upgrade.
 
 `SMTP_SECURE=true` is required for port 465. Use 587 with `SMTP_SECURE=false` if you prefer STARTTLS.
 Verify by inviting yourself before you invite anyone else.

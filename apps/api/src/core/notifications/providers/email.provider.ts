@@ -35,7 +35,15 @@ export class SmtpEmailProvider implements EmailProvider {
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
       secure: env.SMTP_SECURE,
+      // On a submission port the connection starts in the clear, so insist on STARTTLS before the
+      // credentials go over it. Every modern relay advertises it; 465 is already encrypted.
+      requireTLS: !env.SMTP_SECURE,
       auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
+      // Fail fast and say so. A host that filters the port drops packets rather than refusing them,
+      // so without these the job sits for two minutes before reporting ETIMEDOUT.
+      connectionTimeout: 15_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 25_000,
     });
   }
   async send(message: EmailMessage): Promise<{ id?: string }> {
