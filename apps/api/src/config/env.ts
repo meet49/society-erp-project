@@ -51,13 +51,15 @@ const envSchema = z.object({
   MAX_UPLOAD_MB: z.coerce.number().min(1).max(200).default(15),
 
   /** Email */
-  EMAIL_DRIVER: z.enum(['console', 'smtp']).default('console'),
+  EMAIL_DRIVER: z.enum(['console', 'smtp', 'brevo']).default('console'),
   EMAIL_FROM: z.string().default('Society ERP <no-reply@societyerp.local>'),
   SMTP_HOST: z.string().optional().default(''),
   SMTP_PORT: z.coerce.number().optional().default(587),
   SMTP_SECURE: bool.default(false),
   SMTP_USER: z.string().optional().default(''),
   SMTP_PASS: z.string().optional().default(''),
+  /** Brevo HTTPS API key, for hosts that block outbound SMTP ports (Render, most PaaS). */
+  BREVO_API_KEY: z.string().optional().default(''),
 
   /** WhatsApp */
   WHATSAPP_DRIVER: z.enum(['console', 'meta']).default('console'),

@@ -231,8 +231,24 @@ An invitation is only useful if it reaches the person. Two settings decide that:
 - In production the API also stops returning the invite link in its response, on purpose, so an
   admin cannot read other people's invitation tokens.
 
-Together that means **invitations silently go nowhere until you configure SMTP**. On the API service
-set these, then redeploy:
+Together that means **invitations silently go nowhere until email is configured**.
+
+**On Render, do not use SMTP.** Render and most PaaS hosts filter outbound ports 25, 465 and 587 to
+stop spam, so nodemailer never completes the TCP handshake and the job fails with `ETIMEDOUT` on
+`CONN` however correct the credentials are. The same settings work from a laptop, which makes this
+look like a credentials problem when it is a network one. Use the HTTPS email driver instead:
+
+```
+EMAIL_DRIVER=brevo
+BREVO_API_KEY=<key from Brevo, Settings then SMTP & API>
+EMAIL_FROM=Society ERP <your verified sender address>
+```
+
+Brevo sends over port 443, which is never blocked. The sender address has to be verified in Brevo
+first, and a plain Gmail address is fine for that. Any other HTTPS email API works the same way; the
+provider interface has one method.
+
+On a host that does allow SMTP, the nodemailer driver is still there:
 
 ```
 EMAIL_DRIVER=smtp

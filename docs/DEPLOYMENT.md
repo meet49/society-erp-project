@@ -18,7 +18,9 @@ Required in production:
 | `APP_URL`, `API_URL`, `CORS_ORIGINS` | Public URLs of the web app and API; CORS is an allow-list. |
 | `TRUST_PROXY=true` | When behind nginx / a load balancer (correct client IPs for rate limiting and audit). |
 
-Optional integrations: `STORAGE_DRIVER=s3` + `S3_*`, `EMAIL_DRIVER=smtp` + `SMTP_*`,
+Optional integrations: `STORAGE_DRIVER=s3` + `S3_*`, `EMAIL_DRIVER=smtp` + `SMTP_*` (or
+`EMAIL_DRIVER=brevo` + `BREVO_API_KEY`, which you need on any host that blocks outbound SMTP ports,
+Render included),
 `WHATSAPP_DRIVER=meta` + `WHATSAPP_META_*`, `PUSH_DRIVER=webpush` + `VAPID_*`,
 `PAYMENT_DRIVER=razorpay` + `RAZORPAY_*` (platform subscription payments; societies configure their
 own gateway credentials in Settings → Payments).

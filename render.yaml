@@ -55,7 +55,9 @@ services:
       # set STORAGE_DRIVER=s3 and fill the S3_* variables in the dashboard.
       - key: STORAGE_DRIVER
         value: local
-      - key: EMAIL_DRIVER # set to 'smtp' and add SMTP_* in the dashboard to send real mail
+      # Render filters outbound SMTP (25, 465, 587), so nodemailer times out here however correct the
+      # credentials are. To send real mail set this to 'brevo' and add BREVO_API_KEY, which uses HTTPS.
+      - key: EMAIL_DRIVER
         value: console
       - key: PAYMENT_DRIVER # platform subscription billing; societies configure their own gateway in-app
         value: mock

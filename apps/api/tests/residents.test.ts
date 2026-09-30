@@ -36,6 +36,26 @@ describe('residents & move workflows', () => {
     expect(stats.body.data.byType.OWNER).toBe(1);
   });
 
+  it('refuses the same person twice in one unit, but allows them in another', async () => {
+    const dup = { unitId: unitA.id, name: 'Owner One', phone: '9000000001', email: 'owner1@test.local', type: 'OWNER' };
+    // exact re-submit of the record created above
+    const again = await api.post('/api/v1/residents').set(auth(admin)).send(dup);
+    expect(again.status).toBe(409);
+    expect(again.body.details.matchedOn).toBe('email address');
+    expect(again.body.message).toContain('A-101');
+    // same email, different name, still the same flat
+    expect((await api.post('/api/v1/residents').set(auth(admin)).send({ ...dup, name: 'Someone Else' })).status).toBe(409);
+    // same name in a different case, no email at all
+    expect((await api.post('/api/v1/residents').set(auth(admin)).send({ unitId: unitA.id, name: 'owner one', type: 'OWNER' })).status).toBe(409);
+    // a second flat is legitimate: people own more than one
+    const other = await api.post('/api/v1/residents').set(auth(admin)).send({ ...dup, unitId: unitB.id });
+    expect(other.status).toBe(201);
+    // and editing someone into a unit that already has them is refused too
+    const moved = await api.patch(`/api/v1/residents/${other.body.data.id}`).set(auth(admin)).send({ unitId: unitA.id });
+    expect(moved.status).toBe(409);
+    await api.delete(`/api/v1/residents/${other.body.data.id}`).set(auth(admin));
+  });
+
   it('member sees only their own household with own-scope, and can add family', async () => {
     const memberRole = roles.find((r) => r.key === 'MEMBER').id;
     // create resident for unit B with a login

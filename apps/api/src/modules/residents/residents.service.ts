@@ -76,10 +76,42 @@ class ResidentService {
   }
 
   // ------------------------------------------------------------------ mutations
+  /**
+   * The model holds one document per (person, unit): the same person may legitimately appear again in
+   * a *different* flat, because owners and tenants can hold more than one, but twice in the same flat
+   * is always a double entry. Matching on email and on name covers both ways an admin creates one:
+   * re-submitting the form, and importing a sheet twice.
+   */
+  private async assertNotDuplicate(
+    societyId: string,
+    unitId: string,
+    unitCode: string,
+    input: { name?: string; email?: string },
+    session?: mongoose.ClientSession,
+    excludeResidentId?: string,
+  ): Promise<void> {
+    const or: Record<string, unknown>[] = [];
+    const email = input.email?.trim().toLowerCase();
+    if (email) or.push({ email });
+    if (input.name?.trim()) or.push({ name: new RegExp(`^${input.name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+    if (!or.length) return;
+    const filter: Record<string, unknown> = { societyId, unitId, deletedAt: null, $or: or };
+    if (excludeResidentId) filter._id = { $ne: excludeResidentId };
+    const existing = await Resident.findOne(filter).select('name email').session(session ?? null).lean();
+    if (!existing) return;
+    const clash = email && existing.email === email ? 'email address' : 'name';
+    throw Errors.conflict(`${existing.name} is already a resident of ${unitCode} with the same ${clash}. Add them to a different unit, or edit the existing record.`, {
+      residentId: String(existing._id),
+      unitCode,
+      matchedOn: clash,
+    });
+  }
+
   async create(societyId: string, input: Record<string, any>, byUserId: string, req?: any, session?: mongoose.ClientSession): Promise<ResidentDoc> {
     await limitService.assertWithinLimit(societyId, 'maxResidents');
     const unit = await Unit.findOne({ _id: input.unitId, societyId, deletedAt: null }).session(session ?? null);
     if (!unit) throw Errors.validation({ unitId: ['Unknown unit'] });
+    await this.assertNotDuplicate(societyId, String(unit._id), unit.code, input, session);
     const [resident] = await Resident.create([{ ...input, email: input.email || undefined, phone: input.phone || undefined, altPhone: input.altPhone || undefined, societyId, status: 'ACTIVE', moveInDate: input.moveInDate ?? new Date(), createdBy: byUserId }], { session });
     if (input.isPrimary) await Resident.updateMany({ societyId, unitId: unit._id, _id: { $ne: resident._id }, type: input.type }, { $set: { isPrimary: false } }).session(session ?? null);
     await this.recomputeOccupancy(societyId, String(unit._id), session);
@@ -102,6 +134,19 @@ class ResidentService {
       if (!unit) throw Errors.validation({ unitId: ['Unknown unit'] });
     }
     for (const k of ['email', 'phone', 'altPhone']) if (patch[k] === '') patch[k] = undefined;
+    // renaming, changing the email, or moving to another flat can all collide with someone already there
+    if (patch.name !== undefined || patch.email !== undefined || patch.unitId) {
+      const targetUnitId = String(patch.unitId ?? resident.unitId);
+      const targetUnit = targetUnitId === previousUnit ? await Unit.findById(targetUnitId).select('code').lean() : await Unit.findOne({ _id: targetUnitId, societyId, deletedAt: null }).select('code').lean();
+      await this.assertNotDuplicate(
+        societyId,
+        targetUnitId,
+        targetUnit?.code ?? 'this unit',
+        { name: patch.name ?? resident.name, email: patch.email ?? resident.email ?? undefined },
+        undefined,
+        String(resident._id),
+      );
+    }
     resident.set(patch);
     await resident.save();
     if (patch.isPrimary) await Resident.updateMany({ societyId, unitId: resident.unitId, _id: { $ne: resident._id }, type: resident.type }, { $set: { isPrimary: false } });
