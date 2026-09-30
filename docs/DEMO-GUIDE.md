@@ -270,6 +270,22 @@ that. The free tier is 300 emails a day with no time limit. Invite yourself befo
 
 Paid Render instances do allow 465 and 587, so Gmail SMTP starts working the moment you upgrade.
 
+**Then expect one more hurdle: `525 5.7.1 Unauthorized IP address` on `AUTH`.** That is not a wrong
+password. It means the connection and the TLS upgrade both succeeded and Brevo refused the login
+because its own IP allowlist is switched on and Render's address is not in it. New Brevo accounts
+often have this enabled. Fix it one of two ways:
+
+- **Whitelist Render's ranges.** On the API service in Render open **Connect** in the top right, switch
+  to the **Outbound** tab, and copy the IP ranges. In Brevo go to **Settings, Security, Authorized
+  IPs** and add them, one per line; CIDR notation is accepted. Only the API service needs this, since
+  a static site makes no outbound connections. Note these are ranges Render shares between customers,
+  so this narrows access rather than pinning it to you alone.
+- **Or turn the restriction off.** In the same Brevo screen, under **Blocking unauthorized IP
+  addresses**, find the row for SMTP keys and click **Deactivate**. Quicker, and reasonable for a demo.
+
+A permanent authentication failure like this is retried three times and then dropped, so a
+misconfiguration costs a few log lines rather than a stuck queue.
+
 `SMTP_SECURE=true` is required for port 465. Use 587 with `SMTP_SECURE=false` if you prefer STARTTLS.
 Verify by inviting yourself before you invite anyone else.
 
