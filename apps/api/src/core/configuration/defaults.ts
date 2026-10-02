@@ -93,6 +93,14 @@ export const PLATFORM_SETTING_DEFAULTS: PlatformSettingDefault[] = [
     label: 'Global call to action',
     isPublic: true,
   },
+  {
+    key: 'landing.locales',
+    value: { default: 'en', enabled: ['en', 'hi', 'gu'] },
+    group: 'website',
+    label: 'Website languages',
+    description: 'Languages offered by the public website switcher, and the one shown first. Section text is translated per language in the landing editor.',
+    isPublic: true,
+  },
   { key: 'landing.pricing', value: { showAnnualDiscount: true, annualDiscountLabel: 'Save 2 months', currencySymbol: '₹', note: 'Prices exclude GST. Cancel anytime.' }, group: 'website', label: 'Pricing display', isPublic: true },
   // ---- security
   { key: 'security.inviteExpiryDays', value: 7, group: 'security', label: 'Invitation validity (days)' },

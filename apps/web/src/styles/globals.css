@@ -131,3 +131,236 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* ------------------------------------------------------------------ public website: motion & decoration
+   Plain CSS on purpose: rules inside @layer are tree-shaken by class name, and several of these are
+   reached through attributes or pseudo-elements. Every animation is switched off under reduced motion. */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.reveal[data-revealed] {
+  opacity: 1;
+  transform: none;
+}
+/* Headline tracking: tight for Latin, neutral for Devanagari/Gujarati whose conjuncts and matras need room. */
+.display {
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+html:not([lang='en']) .display,
+html:not([lang='en']) .tracking-tight {
+  letter-spacing: 0;
+}
+html:not([lang='en']) .display {
+  line-height: 1.25;
+}
+
+.aurora {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.aurora::before,
+.aurora::after,
+.aurora > i {
+  content: '';
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(72px);
+  opacity: 0.55;
+}
+.aurora::before {
+  width: 46rem;
+  height: 46rem;
+  left: -12rem;
+  top: -16rem;
+  background: radial-gradient(closest-side, hsl(var(--primary) / 0.5), transparent 70%);
+  animation: aurora-a 18s ease-in-out infinite alternate;
+}
+.aurora::after {
+  width: 38rem;
+  height: 38rem;
+  right: -10rem;
+  top: -8rem;
+  background: radial-gradient(closest-side, hsl(199 89% 60% / 0.42), transparent 70%);
+  animation: aurora-b 22s ease-in-out infinite alternate;
+}
+.aurora > i {
+  width: 30rem;
+  height: 30rem;
+  left: 42%;
+  bottom: -18rem;
+  background: radial-gradient(closest-side, hsl(280 70% 65% / 0.32), transparent 70%);
+  animation: aurora-c 26s ease-in-out infinite alternate;
+}
+.dark .aurora::before,
+.dark .aurora::after,
+.dark .aurora > i {
+  opacity: 0.38;
+}
+.grid-dots {
+  background-image: radial-gradient(hsl(var(--foreground) / 0.14) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 35%, transparent 75%);
+  mask-image: radial-gradient(ellipse at center, #000 35%, transparent 75%);
+}
+.grid-lines {
+  background-image:
+    linear-gradient(to right, hsl(0 0% 100% / 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(0 0% 100% / 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 0%, #000 30%, transparent 80%);
+  mask-image: radial-gradient(ellipse at 50% 0%, #000 30%, transparent 80%);
+}
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+.animate-marquee {
+  animation: marquee var(--marquee-duration, 48s) linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+.animate-float {
+  animation: float-y 6s ease-in-out infinite;
+}
+.animate-pop {
+  animation: pop-in 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.bar-grow {
+  transform-origin: bottom;
+  animation: grow-bar 1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.ring-draw {
+  animation: ring-draw 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.text-shine {
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(280 70% 60%), hsl(199 89% 55%), hsl(var(--primary)));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shine 7s linear infinite;
+}
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.9), hsl(199 89% 60% / 0.6) 50%, hsl(280 70% 65% / 0.6));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.card-hover {
+  transition:
+    transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 0.35s,
+    border-color 0.35s;
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 44px -22px hsl(var(--primary) / 0.4);
+  border-color: hsl(var(--primary) / 0.45);
+}
+.faq-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.faq-panel[data-open] {
+  grid-template-rows: 1fr;
+}
+.faq-panel > div {
+  overflow: hidden;
+}
+
+@keyframes aurora-a {
+  to {
+    transform: translate(9rem, 6rem) scale(1.12);
+  }
+}
+@keyframes aurora-b {
+  to {
+    transform: translate(-7rem, 8rem) scale(1.18);
+  }
+}
+@keyframes aurora-c {
+  to {
+    transform: translate(-11rem, -5rem) scale(0.94);
+  }
+}
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes grow-bar {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes ring-draw {
+  from {
+    stroke-dashoffset: var(--circ);
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+}
+@keyframes shine {
+  to {
+    background-position: 200% center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .aurora::before,
+  .aurora::after,
+  .aurora > i,
+  .animate-marquee,
+  .animate-float,
+  .animate-pop,
+  .bar-grow,
+  .ring-draw,
+  .text-shine {
+    animation: none !important;
+  }
+  .card-hover,
+  .faq-panel {
+    transition: none;
+  }
+  .card-hover:hover {
+    transform: none;
+  }
+}

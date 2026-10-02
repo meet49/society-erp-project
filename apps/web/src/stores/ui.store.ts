@@ -1,15 +1,35 @@
 import { create } from 'zustand';
-import { sidebarStorage, themeStorage, type Theme } from '@/lib/storage';
+import { SUPPORTED_LOCALES, type Locale } from '@society-erp/shared';
+import { localeStorage, sidebarStorage, themeStorage, type Theme } from '@/lib/storage';
 
 interface UiState {
   theme: Theme;
+  /** Language of the public website (and of any screen that opts in through useT). */
+  locale: Locale;
   sidebarCollapsed: boolean;
   mobileNavOpen: boolean;
   online: boolean;
   setTheme: (theme: Theme) => void;
+  setLocale: (locale: Locale) => void;
   toggleSidebar: () => void;
   setMobileNav: (open: boolean) => void;
   setOnline: (online: boolean) => void;
+}
+
+function isLocale(value: unknown): value is Locale {
+  return typeof value === 'string' && (SUPPORTED_LOCALES as readonly string[]).includes(value);
+}
+
+/** Saved choice first, then the browser language if we support it, else English. `hi-IN` → `hi`. */
+export function initialLocale(): Locale {
+  const saved = localeStorage.get();
+  if (isLocale(saved)) return saved;
+  const nav = typeof navigator === 'undefined' ? '' : (navigator.language ?? '').toLowerCase().split('-')[0];
+  return isLocale(nav) ? nav : 'en';
+}
+
+function applyLocale(locale: Locale): void {
+  document.documentElement.lang = locale;
 }
 
 function applyTheme(theme: Theme): void {
@@ -19,6 +39,7 @@ function applyTheme(theme: Theme): void {
 
 export const useUiStore = create<UiState>((set, get) => ({
   theme: themeStorage.get(),
+  locale: initialLocale(),
   sidebarCollapsed: sidebarStorage.get(),
   mobileNavOpen: false,
   online: typeof navigator === 'undefined' ? true : navigator.onLine,
@@ -26,6 +47,12 @@ export const useUiStore = create<UiState>((set, get) => ({
     themeStorage.set(theme);
     applyTheme(theme);
     set({ theme });
+  },
+  setLocale: (locale) => {
+    if (!isLocale(locale)) return;
+    localeStorage.set(locale);
+    applyLocale(locale);
+    set({ locale });
   },
   toggleSidebar: () => {
     const next = !get().sidebarCollapsed;
@@ -38,6 +65,7 @@ export const useUiStore = create<UiState>((set, get) => ({
 
 if (typeof window !== 'undefined') {
   applyTheme(useUiStore.getState().theme);
+  applyLocale(useUiStore.getState().locale);
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (useUiStore.getState().theme === 'system') applyTheme('system');
   });

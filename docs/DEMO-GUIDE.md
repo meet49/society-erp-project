@@ -289,6 +289,15 @@ misconfiguration costs a few log lines rather than a stuck queue.
 `SMTP_SECURE=true` is required for port 465. Use 587 with `SMTP_SECURE=false` if you prefer STARTTLS.
 Verify by inviting yourself before you invite anyone else.
 
+## 4c. The website in Hindi and Gujarati
+
+The public site (landing, pricing, contact) is served in English, Hindi or Gujarati. The switcher sits in the header next to the theme button, and in the footer. A first-time visitor gets their browser language when it is one of the enabled ones; the choice is remembered on that device.
+
+- **Which languages are offered** is a platform setting: Super Admin → Website → Brand & SEO → *Languages*. Switch a language off and it disappears from the switcher; visitors who had picked it fall back to the default.
+- **Translating a section**: Website → Landing Page → Edit → pick the language tab (हिन्दी / ગુજરાતી). Every text field shows the English value as its placeholder; an empty field means "show the English". Links, icons, images and step numbers are shared across languages, so they are only edited on the English tab. Save as draft and publish exactly as for English; *Preview drafts* has the same language tabs.
+- **What is not translated**: plan names, plan descriptions and feature labels (they come from Plans), the footer columns and the pricing note (Brand & SEO settings). Those stay as entered.
+- The stock sections ship with Hindi and Gujarati text already filled in, including on a site that was seeded before this feature existed: the API adds them once on start-up to any stock section that has no translations yet, and never overwrites a section an admin has translated.
+
 ## 5. Free plan limits, and how to talk about them
 
 Be straight about these. Committees respect it, and all three disappear on a paid plan.

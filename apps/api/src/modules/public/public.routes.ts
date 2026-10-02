@@ -14,9 +14,9 @@ export const publicRouter = Router();
 
 publicRouter.get(
   '/landing',
-  validate(z.object({ page: z.string().regex(/^[a-z-]+$/).optional() }), 'query'),
+  validate(z.object({ page: z.string().regex(/^[a-z-]+$/).optional(), locale: z.string().regex(/^[a-z]{2}(-[A-Za-z]{2})?$/).optional() }), 'query'),
   asyncHandler(async (req, res) => {
-    ok(res, await landingService.publicPage((req.query.page as string) || 'home'));
+    ok(res, await landingService.publicPage((req.query.page as string) || 'home', req.query.locale as string | undefined));
   }),
 );
 

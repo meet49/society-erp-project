@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { toast } from 'sonner';
+import { LOCALE_LABELS, SUPPORTED_LOCALES, type Locale } from '@society-erp/shared';
 import { PageHeader } from '@/components/common/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,8 @@ export default function BrandPage() {
   const seo = get('landing.seo') ?? {};
   const _cta = get('landing.cta') ?? {};
   const footer = get('landing.footer') ?? {};
+  const locales: { default: Locale; enabled: Locale[] } = { default: 'en', enabled: ['en'], ...(get('landing.locales') ?? {}) };
+  const setLocales = (enabled: Locale[], preferred: Locale) => set('landing.locales', { enabled, default: enabled.includes(preferred) ? preferred : enabled[0] });
   const save = () => update.mutate(Object.entries(draft).map(([key, value]) => ({ key, value })), { onSuccess: () => { toast.success('Website settings saved'); clear(); } });
 
   const text = (key: string, label: string, opts: { obj?: string; field?: string; placeholder?: string } = {}) => {
@@ -96,6 +99,30 @@ export default function BrandPage() {
               <Switch checked={get('signup.enabled') !== false} onCheckedChange={(v) => set('signup.enabled', v)} />
             </div>
             {text('signup.defaultPlanSlug', 'Default plan slug for signup')}
+          </CardContent>
+        </Card>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-sm">Languages</CardTitle>
+            <CardDescription>Which languages the public website offers in its switcher, and the one first-time visitors see. Section text is translated per language in the landing editor; the browser language is used when it is enabled.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-3">
+            {SUPPORTED_LOCALES.map((l) => {
+              const enabled = locales.enabled.includes(l);
+              const isDefault = locales.default === l;
+              return (
+                <div key={l} className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm" data-testid={`locale-${l}`}>
+                  <div>
+                    <Label lang={l}>{LOCALE_LABELS[l].native}</Label>
+                    <p className="text-xs text-muted-foreground">{LOCALE_LABELS[l].english}{isDefault ? ' · default' : ''}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!isDefault ? <Button variant="ghost" size="sm" disabled={!enabled} onClick={() => setLocales(locales.enabled, l)}>Make default</Button> : null}
+                    <Switch checked={enabled} disabled={enabled && locales.enabled.length === 1} aria-label={`${LOCALE_LABELS[l].english} enabled`} onCheckedChange={(v) => setLocales(v ? [...locales.enabled, l] : locales.enabled.filter((x) => x !== l), locales.default)} />
+                  </div>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
         <Card className="lg:col-span-2">

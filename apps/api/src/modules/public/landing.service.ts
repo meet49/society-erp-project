@@ -1,3 +1,4 @@
+import { SUPPORTED_LOCALES, type Locale } from '@society-erp/shared';
 import { LandingSection } from '../../models/landing-section.model';
 import { Errors } from '../../lib/errors';
 import { configCache, invalidationBus } from '../../lib/cache';
@@ -7,28 +8,90 @@ import { auditService } from '../../core/audit/audit.service';
 import { planService } from '../platform/plans.service';
 import { DEFAULT_LANDING_SECTIONS } from '../../seed/data/landing-sections';
 
-const EDITABLE = ['title', 'subtitle', 'description', 'content', 'image', 'icon', 'cta', 'metadata', 'isVisible'] as const;
+const EDITABLE = ['title', 'subtitle', 'description', 'content', 'image', 'icon', 'cta', 'metadata', 'translations', 'isVisible'] as const;
+
+type Translation = { title?: string; subtitle?: string; description?: string; cta?: Record<string, string>; content?: Record<string, unknown> };
+export interface LocaleConfig {
+  default: Locale;
+  enabled: Locale[];
+}
+
+/**
+ * Overlays a translation on the English base. Strings replace only when non-empty, objects merge
+ * key by key and arrays merge by index, so `content.items[2].icon` set in English survives a Hindi
+ * translation that only supplies `title` and `description` for that item.
+ */
+export function mergeTranslation<T>(base: T, over: unknown): T {
+  if (over === undefined || over === null) return base;
+  if (Array.isArray(base)) {
+    if (!Array.isArray(over)) return base;
+    return base.map((item, i) => (i < over.length ? mergeTranslation(item, over[i]) : item)) as T;
+  }
+  if (typeof base === 'object' && base !== null) {
+    if (typeof over !== 'object' || Array.isArray(over)) return base;
+    const out: Record<string, unknown> = { ...(base as Record<string, unknown>) };
+    for (const [k, v] of Object.entries(over as Record<string, unknown>)) out[k] = k in out ? mergeTranslation(out[k], v) : v;
+    return out as T;
+  }
+  if (typeof over === 'string') return (over.trim() ? over : base) as T;
+  return base;
+}
 
 class LandingService {
   async ensureDefaults(): Promise<void> {
     const count = await LandingSection.countDocuments();
-    if (count > 0) return;
-    await LandingSection.insertMany(DEFAULT_LANDING_SECTIONS.map((s) => ({ ...s, isPublished: true, publishedAt: new Date(), isVisible: true })));
-    await this.invalidate();
+    if (count === 0) {
+      await LandingSection.insertMany(DEFAULT_LANDING_SECTIONS.map((s) => ({ ...s, isPublished: true, publishedAt: new Date(), isVisible: true })));
+      await this.invalidate();
+      return;
+    }
+    // Sites seeded before translations existed: give the stock sections their stock translations once,
+    // without touching anything the admin has edited. A section that already carries translations is left alone.
+    let changed = 0;
+    for (const def of DEFAULT_LANDING_SECTIONS) {
+      if (!def.translations) continue;
+      const res = await LandingSection.updateOne({ key: def.key, $or: [{ translations: { $exists: false } }, { translations: null }, { translations: {} }] }, { $set: { translations: def.translations } });
+      changed += res.modifiedCount;
+    }
+    if (changed) await this.invalidate();
   }
 
-  /** Public payload: published, visible sections + public settings + plans + module catalogue. */
-  async publicPage(page = 'home') {
-    return configCache.getOrSet(`config:landing:${page}`, async () => {
-      const [sections, settings, plans, modules] = await Promise.all([
-        LandingSection.find({ page, isPublished: true, isVisible: true }).sort({ sortOrder: 1 }).lean(),
-        configurationService.getPublicPlatformSettings(),
-        planService.publicPlans(),
-        moduleEngine.getGlobalModules('SOCIETY'),
-      ]);
+  async localeConfig(settings?: Record<string, unknown>): Promise<LocaleConfig> {
+    const raw = ((settings ?? (await configurationService.getPublicPlatformSettings()))['landing.locales'] ?? {}) as Partial<LocaleConfig>;
+    const enabled = (Array.isArray(raw.enabled) ? raw.enabled : []).filter((l): l is Locale => (SUPPORTED_LOCALES as readonly string[]).includes(l));
+    const list = enabled.length ? enabled : (['en'] as Locale[]);
+    const def = raw.default && list.includes(raw.default) ? raw.default : list[0];
+    return { default: def, enabled: list };
+  }
+
+  /** `hi-IN` -> `hi`; anything not enabled falls back to the default language rather than erroring. */
+  resolveLocale(requested: string | undefined, cfg: LocaleConfig): Locale {
+    const short = (requested ?? '').toLowerCase().split('-')[0] as Locale;
+    return cfg.enabled.includes(short) ? short : cfg.default;
+  }
+
+  private localize<T extends { translations?: unknown; title?: string; subtitle?: string; description?: string; cta?: unknown; content?: unknown }>(s: T, locale: Locale): T {
+    if (locale === 'en') return s;
+    const t = ((s.translations as Record<string, Translation> | undefined) ?? {})[locale];
+    if (!t) return s;
+    return { ...s, title: mergeTranslation(s.title ?? '', t.title), subtitle: mergeTranslation(s.subtitle ?? '', t.subtitle), description: mergeTranslation(s.description ?? '', t.description), cta: mergeTranslation(s.cta ?? {}, t.cta), content: mergeTranslation(s.content ?? {}, t.content) };
+  }
+
+  /** Public payload: published, visible sections + public settings + plans + module catalogue, in the requested language. */
+  async publicPage(page = 'home', requestedLocale?: string) {
+    const settings = await configurationService.getPublicPlatformSettings();
+    const cfg = await this.localeConfig(settings);
+    const locale = this.resolveLocale(requestedLocale, cfg);
+    return configCache.getOrSet(`config:landing:${page}:${locale}`, async () => {
+      const [sections, plans, modules] = await Promise.all([LandingSection.find({ page, isPublished: true, isVisible: true }).sort({ sortOrder: 1 }).lean(), planService.publicPlans(), moduleEngine.getGlobalModules('SOCIETY')]);
       return {
         page,
-        sections: sections.map((s) => ({ id: String(s._id), type: s.type, key: s.key, title: s.title, subtitle: s.subtitle, description: s.description, content: s.content, image: s.image, icon: s.icon, cta: s.cta, metadata: s.metadata, sortOrder: s.sortOrder })),
+        locale,
+        locales: cfg,
+        sections: sections.map((s) => {
+          const l = this.localize(s, locale);
+          return { id: String(s._id), type: s.type, key: s.key, title: l.title, subtitle: l.subtitle, description: l.description, content: l.content, image: s.image, icon: s.icon, cta: l.cta, metadata: s.metadata, sortOrder: s.sortOrder };
+        }),
         settings,
         plans,
         modules: modules.filter((m) => m.status !== 'INACTIVE').map((m) => ({ key: m.key, name: m.name, description: m.description, icon: m.icon, category: m.category })),
@@ -37,16 +100,20 @@ class LandingService {
   }
 
   /** Preview payload for the CMS: draft values take precedence, hidden/unpublished included with flags. */
-  async previewPage(page = 'home') {
+  async previewPage(page = 'home', requestedLocale?: string) {
     const [sections, settings, plans, modules] = await Promise.all([
       LandingSection.find({ page }).sort({ sortOrder: 1 }).lean(),
       configurationService.getPublicPlatformSettings(),
       planService.publicPlans(),
       moduleEngine.getGlobalModules('SOCIETY'),
     ]);
+    const cfg = await this.localeConfig(settings);
+    const locale = this.resolveLocale(requestedLocale, cfg);
     return {
       page,
-      sections: sections.map((s) => ({ ...(s.draft ? { ...s, ...(s.draft as object) } : s), id: String(s._id), hasDraft: Boolean(s.draft) })),
+      locale,
+      locales: cfg,
+      sections: sections.map((s) => ({ ...this.localize(s.draft ? { ...s, ...(s.draft as object) } : s, locale), id: String(s._id), hasDraft: Boolean(s.draft) })),
       settings,
       plans,
       modules: modules.filter((m) => m.status !== 'INACTIVE').map((m) => ({ key: m.key, name: m.name, description: m.description, icon: m.icon, category: m.category })),

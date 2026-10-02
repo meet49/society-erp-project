@@ -1,11 +1,11 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
-import type { LeadInput, LoginResponse, SignupInput } from '@society-erp/shared';
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
+import type { LeadInput, Locale, LoginResponse, SignupInput } from '@society-erp/shared';
 import { http } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth.store';
 import { connectSocket } from '@/lib/socket';
 
 export const publicKeys = {
-  landing: (page: string) => ['public', 'landing', page] as const,
+  landing: (page: string, locale?: string) => ['public', 'landing', page, locale ?? 'default'] as const,
   plans: ['public', 'plans'] as const,
   settings: ['public', 'settings'] as const,
   signupConfig: ['public', 'signup-config'] as const,
@@ -46,14 +46,18 @@ export interface PublicPlan {
 
 export interface PublicLanding {
   page: string;
+  /** language the sections were served in; may differ from the request when that language is not enabled */
+  locale: Locale;
+  locales: { default: Locale; enabled: Locale[] };
   sections: PublicSection[];
   settings: Record<string, any>;
   plans: PublicPlan[];
   modules: { key: string; name: string; description?: string; icon: string; category: string }[];
 }
 
-export function usePublicLanding(page = 'home') {
-  return useQuery({ queryKey: publicKeys.landing(page), queryFn: () => http.get<PublicLanding>('/public/landing', { params: { page } }), staleTime: 60_000 });
+export function usePublicLanding(page = 'home', locale?: Locale) {
+  // keepPreviousData: switching language swaps text in place instead of flashing the skeleton
+  return useQuery({ queryKey: publicKeys.landing(page, locale), queryFn: () => http.get<PublicLanding>('/public/landing', { params: { page, locale } }), staleTime: 60_000, placeholderData: keepPreviousData });
 }
 
 export function usePublicPlans() {

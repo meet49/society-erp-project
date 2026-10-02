@@ -1,6 +1,7 @@
 const REFRESH_KEY = 'society-erp:refresh';
 const THEME_KEY = 'society-erp:theme';
 const SIDEBAR_KEY = 'society-erp:sidebar';
+const LOCALE_KEY = 'society-erp:locale';
 
 function safeGet(key: string): string | null {
   try {
@@ -34,4 +35,9 @@ export const themeStorage = {
 export const sidebarStorage = {
   get: (): boolean => safeGet(SIDEBAR_KEY) === 'collapsed',
   set: (collapsed: boolean) => safeSet(SIDEBAR_KEY, collapsed ? 'collapsed' : 'expanded'),
+};
+
+export const localeStorage = {
+  get: (): string | null => safeGet(LOCALE_KEY),
+  set: (locale: string) => safeSet(LOCALE_KEY, locale),
 };

@@ -28,7 +28,7 @@ export const platformKeys = {
   tickets: (params?: Record<string, unknown>) => ['platform', 'tickets', params ?? {}] as const,
   ticket: (id: string) => ['platform', 'ticket', id] as const,
   landingSections: (page?: string) => ['platform', 'landing', 'sections', page ?? 'all'] as const,
-  landingPreview: (page: string) => ['platform', 'landing', 'preview', page] as const,
+  landingPreview: (page: string, locale?: string) => ['platform', 'landing', 'preview', page, locale ?? 'en'] as const,
   payments: (params?: Record<string, unknown>) => ['platform', 'payments', params ?? {}] as const,
 };
 
@@ -171,7 +171,7 @@ export function useReplyTicket() {
 
 // ---------------- landing CMS
 export const useLandingSections = (page?: string) => useQuery({ queryKey: platformKeys.landingSections(page), queryFn: () => http.get<any[]>('/platform/landing/sections', { params: page ? { page } : undefined }) });
-export const useLandingPreview = (page = 'home') => useQuery({ queryKey: platformKeys.landingPreview(page), queryFn: () => http.get<any>('/platform/landing/preview', { params: { page } }) });
+export const useLandingPreview = (page = 'home', locale?: string) => useQuery({ queryKey: platformKeys.landingPreview(page, locale), queryFn: () => http.get<any>('/platform/landing/preview', { params: { page, locale } }) });
 function useLandingMutation<TVars>(fn: (vars: TVars) => Promise<unknown>) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: fn, onSuccess: () => inv(qc, ['platform', 'landing'], ['public']) });

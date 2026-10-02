@@ -82,6 +82,10 @@ Permission keys are `module:action`. `*_own` actions grant own-scope access (mem
 Frontend gates (`PermissionGate`, `ModuleGate`, `PlanGate`, `SubscriptionGate`, `FeatureGate`) are UX only;
 the API enforces every rule and tests assert it (`apps/api/tests`).
 
+## Website languages
+
+The public website is multilingual at two layers. **Content** (landing sections) carries a `translations` map per locale on the `LandingSection` document; `GET /public/landing?locale=hi` overlays that translation on the English base with `mergeTranslation` (strings replace when non-empty, objects merge by key, arrays by index so icons and step numbers stay put), then caches per page+locale. Enabled locales and the default live in the `landing.locales` platform setting; an unknown or disabled locale resolves to the default rather than failing. **Chrome** (nav, pricing toggle, contact form labels) lives in `apps/web/src/lib/i18n/{en,hi,gu}.ts`; `useT()` reads the locale from the UI store, which persists it and sets `<html lang>`. Supported locales are declared once in `@society-erp/shared` (`SUPPORTED_LOCALES`). A unit test pins dictionary parity; an API test pins the merge, fallback and settings behaviour.
+
 ## Tenancy & security
 
 - Every tenant entity has `societyId`; queries are always scoped by `req.tenant.societyId`.

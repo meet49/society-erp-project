@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { toast } from 'sonner';
 import { ArrowDown, ArrowUp, Eye, EyeOff, Globe, Pencil, Plus, Trash2, ExternalLink } from 'lucide-react';
-import { LandingSectionTypes } from '@society-erp/shared';
+import { LandingSectionTypes, LOCALE_LABELS, SUPPORTED_LOCALES, type Locale } from '@society-erp/shared';
 import { PageHeader } from '@/components/common/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +21,8 @@ import { formatStatus, formatDateTime } from '@/lib/utils';
 
 export default function LandingEditorPage() {
   const sections = useLandingSections('home');
-  const preview = useLandingPreview('home');
+  const [previewLocale, setPreviewLocale] = React.useState<Locale>('en');
+  const preview = useLandingPreview('home', previewLocale);
   const publish = usePublishSection();
   const unpublish = useUnpublishSection();
   const reorder = useReorderSections();
@@ -107,8 +108,15 @@ export default function LandingEditorPage() {
 
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent size="xl" className="max-h-[92vh] p-0">
-          <DialogHeader className="border-b p-4"><DialogTitle>Preview (drafts included)</DialogTitle></DialogHeader>
-          <div className="overflow-y-auto">
+          <DialogHeader className="flex-row items-center justify-between gap-4 border-b p-4 pr-12">
+            <DialogTitle>Preview (drafts included)</DialogTitle>
+            <div className="inline-flex items-center gap-1 rounded-md border bg-muted/40 p-1 text-sm" role="tablist" aria-label="Preview language">
+              {SUPPORTED_LOCALES.map((l) => (
+                <button key={l} type="button" role="tab" aria-selected={previewLocale === l} lang={l} className={previewLocale === l ? 'rounded bg-background px-3 py-1 font-medium shadow-sm' : 'rounded px-3 py-1 text-muted-foreground hover:text-foreground'} onClick={() => setPreviewLocale(l)}>{LOCALE_LABELS[l].native}</button>
+              ))}
+            </div>
+          </DialogHeader>
+          <div className="overflow-y-auto" lang={previewLocale}>
             {preview.data ? preview.data.sections.filter((s: any) => s.isVisible !== false).map((s: any) => <RenderSection key={s.id} section={s} landing={preview.data} />) : <TableSkeleton />}
           </div>
         </DialogContent>

@@ -100,6 +100,43 @@ describe('super admin console', () => {
     expect(pub.body.data.sections[0].key).toBe('partners');
   });
 
+  it('LANDING I18N: serves the site in the requested language, merges translations over the English base and falls back safely', async () => {
+    const sections = (await api.get('/api/v1/platform/landing/sections').set(auth(superToken))).body.data;
+    const value = sections.find((s: any) => s.key === 'value');
+    const hiHero = (await api.get('/api/v1/public/landing?locale=hi')).body.data;
+    expect(hiHero.locale).toBe('hi');
+    expect(hiHero.locales.enabled).toEqual(['en', 'hi', 'gu']);
+    const hero = hiHero.sections.find((s: any) => s.key === 'hero');
+    expect(hero.title).toMatch(/सोसाइटी/);
+    expect(hero.cta.href).toBe('/signup'); // links are not translatable, they come from the English base
+    expect(hero.content.stats[0].value).toBe('30+'); // untranslated array fields survive the by-index merge
+    expect(hero.content.stats[0].label).toBe('मॉड्यूल');
+    // items keep their icon from the base while text comes from the translation
+    const gu = (await api.get('/api/v1/public/landing?locale=gu-IN')).body.data;
+    expect(gu.locale).toBe('gu');
+    const guValue = gu.sections.find((s: any) => s.key === 'value');
+    expect(guValue.content.items[0].icon).toBe('Rocket');
+    expect(guValue.content.items[0].title).not.toBe(value.content.items[0].title);
+    // unknown or disabled languages fall back to the default instead of failing
+    expect((await api.get('/api/v1/public/landing?locale=fr')).body.data.locale).toBe('en');
+    expect((await api.get('/api/v1/public/landing?locale=not-a-locale!')).status).toBe(422);
+    // editing a translation goes through the same draft → publish flow
+    await api.patch(`/api/v1/platform/landing/sections/${value.id}`).set(auth(superToken)).send({ translations: { ...value.translations, hi: { ...value.translations.hi, title: 'नया हिन्दी शीर्षक' } } }).expect(200);
+    expect((await api.get('/api/v1/public/landing?locale=hi')).body.data.sections.find((s: any) => s.key === 'value').title).not.toBe('नया हिन्दी शीर्षक');
+    const preview = await api.get('/api/v1/platform/landing/preview?locale=hi').set(auth(superToken));
+    expect(preview.body.data.sections.find((s: any) => s.key === 'value').title).toBe('नया हिन्दी शीर्षक');
+    await api.post(`/api/v1/platform/landing/sections/${value.id}/publish`).set(auth(superToken)).expect(200);
+    expect((await api.get('/api/v1/public/landing?locale=hi')).body.data.sections.find((s: any) => s.key === 'value').title).toBe('नया हिन्दी शीर्षक');
+    // an unsupported locale key in a translation patch is rejected
+    await api.patch(`/api/v1/platform/landing/sections/${value.id}`).set(auth(superToken)).send({ translations: { fr: { title: 'x' } } }).expect(422);
+    // disabling a language in settings removes it from the switcher and from resolution
+    await api.put('/api/v1/platform/settings').set(auth(superToken)).send({ settings: [{ key: 'landing.locales', value: { default: 'hi', enabled: ['en', 'hi'] } }] }).expect(204);
+    const after = (await api.get('/api/v1/public/landing?locale=gu')).body.data;
+    expect(after.locale).toBe('hi');
+    expect(after.locales).toEqual({ default: 'hi', enabled: ['en', 'hi'] });
+    await api.put('/api/v1/platform/settings').set(auth(superToken)).send({ settings: [{ key: 'landing.locales', value: { default: 'en', enabled: ['en', 'hi', 'gu'] } }] }).expect(204);
+  });
+
   it('captures leads from the public site into the CRM', async () => {
     const lead = await api.post('/api/v1/public/leads').send({ type: 'DEMO_REQUEST', name: 'Prospect One', email: 'prospect@example.com', phone: '9876543210', societyName: 'Lake View', city: 'Mumbai', message: 'Need a demo' });
     expect(lead.status).toBe(201);

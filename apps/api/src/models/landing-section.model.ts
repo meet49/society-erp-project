@@ -19,6 +19,12 @@ const landingSectionSchema = new Schema(
     icon: { type: String, default: '' },
     cta: { label: { type: String, default: '' }, href: { type: String, default: '' }, secondaryLabel: { type: String, default: '' }, secondaryHref: { type: String, default: '' } },
     metadata: { type: Schema.Types.Mixed, default: {} },
+    /**
+     * Per-locale overrides of the text fields: `{ hi: { title, subtitle, description, cta, content } }`.
+     * English lives in the top-level fields; a translation only needs the strings that differ, and
+     * arrays inside `content` are merged by position so icons/avatars/step numbers stay in one place.
+     */
+    translations: { type: Schema.Types.Mixed, default: {} },
     sortOrder: { type: Number, default: 0 },
     isVisible: { type: Boolean, default: true },
     isPublished: { type: Boolean, default: false },

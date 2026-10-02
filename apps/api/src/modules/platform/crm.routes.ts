@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { LandingSectionTypes, LeadStatus, LeadTypes, Priorities, SupportTicketSources, SupportTicketStatus, idParamSchema, objectIdSchema, paginationQuerySchema } from '@society-erp/shared';
+import { LandingSectionTypes, LeadStatus, LeadTypes, Priorities, SupportTicketSources, SupportTicketStatus, idParamSchema, objectIdSchema, paginationQuerySchema, SUPPORTED_LOCALES } from '@society-erp/shared';
 import { asyncHandler, authenticate, authorizePlatformPermission as perm, requirePlatform, validate } from '../../middleware';
 import { ok, created, noContent, paged } from '../../lib/response';
 import { leadService } from '../public/leads.service';
@@ -83,11 +83,12 @@ const sectionBody = z.object({
   icon: z.string().max(60).optional(),
   cta: z.object({ label: z.string().max(60).optional(), href: z.string().max(300).optional(), secondaryLabel: z.string().max(60).optional(), secondaryHref: z.string().max(300).optional() }).optional(),
   metadata: z.record(z.unknown()).optional(),
+  translations: z.record(z.enum(SUPPORTED_LOCALES), z.object({ title: z.string().max(200).optional(), subtitle: z.string().max(300).optional(), description: z.string().max(2000).optional(), cta: z.object({ label: z.string().max(60).optional(), secondaryLabel: z.string().max(60).optional() }).optional(), content: z.record(z.unknown()).optional() })).optional(),
   sortOrder: z.coerce.number().int().optional(),
   isVisible: z.boolean().optional(),
 });
 crmRouter.get('/landing/sections', perm('platform_landing:view'), validate(z.object({ page: z.string().optional() }), 'query'), asyncHandler(async (req, res) => ok(res, await landingService.list(req.query.page as string | undefined))));
-crmRouter.get('/landing/preview', perm('platform_landing:view'), validate(z.object({ page: z.string().optional() }), 'query'), asyncHandler(async (req, res) => ok(res, await landingService.previewPage((req.query.page as string) || 'home'))));
+crmRouter.get('/landing/preview', perm('platform_landing:view'), validate(z.object({ page: z.string().optional(), locale: z.string().max(10).optional() }), 'query'), asyncHandler(async (req, res) => ok(res, await landingService.previewPage((req.query.page as string) || 'home', req.query.locale as string | undefined))));
 crmRouter.post('/landing/sections', perm('platform_landing:update'), validate(sectionBody.required({ type: true, key: true })), asyncHandler(async (req, res) => created(res, await landingService.create(req.body, req.auth!.userId, req))));
 crmRouter.put('/landing/sections/reorder', perm('platform_landing:update'), validate(z.object({ page: z.string().default('home'), orderedIds: z.array(objectIdSchema).min(1) })), asyncHandler(async (req, res) => { await landingService.reorder(req.body.page, req.body.orderedIds, req); noContent(res); }));
 crmRouter.get('/landing/sections/:id', perm('platform_landing:view'), validate(idParamSchema, 'params'), asyncHandler(async (req, res) => ok(res, await landingService.get(req.params.id))));

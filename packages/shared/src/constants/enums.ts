@@ -171,6 +171,15 @@ export const LandingSectionTypes = [
 ] as const;
 export type LandingSectionType = (typeof LandingSectionTypes)[number];
 
+/** Languages the public website can be served in. Which ones are enabled, and the default, is a platform setting (`landing.locales`). */
+export const SUPPORTED_LOCALES = ['en', 'hi', 'gu'] as const;
+export type Locale = (typeof SUPPORTED_LOCALES)[number];
+export const LOCALE_LABELS: Record<Locale, { native: string; english: string }> = {
+  en: { native: 'English', english: 'English' },
+  hi: { native: 'हिन्दी', english: 'Hindi' },
+  gu: { native: 'ગુજરાતી', english: 'Gujarati' },
+};
+
 export const AssetStatus = ['PURCHASED', 'ACTIVE', 'UNDER_MAINTENANCE', 'DISPOSED'] as const;
 export const ContractStatus = ['DRAFT', 'ACTIVE', 'EXPIRED', 'RENEWED', 'TERMINATED'] as const;
 export const StaffStatus = ['ACTIVE', 'INACTIVE', 'ON_LEAVE', 'RESIGNED'] as const;
